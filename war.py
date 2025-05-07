@@ -48,15 +48,29 @@ def readexactly(sock, numbytes):
     before numbytes have been received, be sure to account for that here or in
     the caller.
     """
-    # TODO
-    pass
+    acc = b""
+    while len(acc) < numbytes:
+        chunk = sock.recv(numbytes - len(acc))
+        if not chunk:
+            raise ConnectionError("error with connecting to socket")
+        acc += chunk
+    return acc
 
 
 def kill_game(game):
     """
     TODO: If either client sends a bad message, immediately nuke the game.
     """
-    pass
+    try:
+        logging.debug("kill game - close p1")
+        game.p1.close()
+    except Exception as e:
+        logging.error(f"cannot close p1: {e}")
+    try:
+        logging.debug("kill game - close p2")
+        game.p2.close()
+    except Exception as e:
+        logging.error(f"cannot close p2 socket: {e}")
 
 
 def compare_cards(card1, card2):
@@ -64,7 +78,15 @@ def compare_cards(card1, card2):
     TODO: Given an integer card representation, return -1 for card1 < card2,
     0 for card1 = card2, and 1 for card1 > card2
     """
-    pass
+    card1 = card1%13
+    card2= card2%13
+
+    if card1<card2:
+        return -1
+    elif card1 == card2:
+        return 0
+    else:
+        return 1
     
 
 def deal_cards():
