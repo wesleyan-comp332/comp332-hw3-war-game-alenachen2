@@ -94,7 +94,11 @@ def deal_cards():
     TODO: Randomize a deck of cards (list of ints 0..51), and return two
     26 card "hands."
     """
-    pass
+    allcards = list(range(52))
+    allcards = random.shuffle(allcards)
+    hand1 = allcards[0:26]
+    hand2 = allcards[26:]
+    return hand1, hand2
     
 
 def serve_game(host, port):
