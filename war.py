@@ -65,12 +65,12 @@ def kill_game(game):
         logging.debug("kill game - close p1")
         game.p1.close()
     except Exception as e:
-        logging.error(f"cannot close p1: {e}")
+        logging.debug(f"cannot close p1: {e}")
     try:
         logging.debug("kill game - close p2")
         game.p2.close()
     except Exception as e:
-        logging.error(f"cannot close p2 socket: {e}")
+        logging.debug(f"cannot close p2 socket: {e}")
 
 
 def compare_cards(card1, card2):
@@ -111,7 +111,7 @@ def serve_game(host, port):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR,1)
     sock.bind((host, port))
     sock.listen()
-    logging.info(f"Server listening on {host}: {port}")
+    logging.debug(f"Server listening on {host}: {port}")
 
     while True:
         connection, address = sock.accept()
@@ -141,7 +141,7 @@ def serve_game(host, port):
                 used_p1 = set()
                 used_p2 = set()
 
-                for _ in range(26):
+                for round_num in range(1,27):
                     recv_p1 = readexactly(p1_sock, 2)
                     recv_p2 = readexactly(p2_sock,2)
                     if recv_p1[0] != Command.PLAYCARD.value or recv_p2[0] != Command.PLAYCARD.value :
@@ -168,14 +168,15 @@ def serve_game(host, port):
                         result_p1 = Result.LOSE.value
                     p1_sock.sendall(bytes([Command.PLAYRESULT.value, result_p1]))
                     p2_sock.sendall(bytes([Command.PLAYRESULT.value, result_p2]))
+                    print(f"Round {round_num}: p1 : {score_p1}, p2 : {score_p2}")
             except Exception as e:
-                logging.error(f"Error:{e}")
+                logging.debug(f"Error:{e}")
                 kill_game(game)
             try:
                 p1_sock.close()
                 p2_sock.close()
             except:
-                logging.error(f"Error could not close sockets:{e}")
+                logging.debug(f"Error could not close sockets:{e}")
 
     
 
@@ -215,13 +216,13 @@ async def client(host, port, loop):
         writer.close()
         return 1
     except ConnectionResetError:
-        logging.error("ConnectionResetError")
+        logging.debug("ConnectionResetError")
         return 0
-    except asyncio.streams.IncompleteReadError:
-        logging.error("asyncio.streams.IncompleteReadError")
+    except asyncio.IncompleteReadError:
+        logging.debug("asyncio.streams.IncompleteReadError")
         return 0
     except OSError:
-        logging.error("OSError")
+        logging.debug("OSError")
         return 0
 
 def main(args):
