@@ -95,7 +95,7 @@ def deal_cards():
     26 card "hands."
     """
     allcards = list(range(52))
-    allcards = random.shuffle(allcards)
+    random.shuffle(allcards)
     hand1 = allcards[0:26]
     hand2 = allcards[26:]
     return hand1, hand2
@@ -107,7 +107,76 @@ def serve_game(host, port):
     perform the war protocol to serve a game of war between each client.
     This function should run forever, continually serving clients.
     """
-    pass
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR,1)
+    sock.bind((host, port))
+    sock.listen()
+    logging.info(f"Server listening on {host}: {port}")
+
+    while True:
+        connection, address = sock.accept()
+        logging.debug(f"connection accepted from {address}")
+        waiting_clients.append(connection)
+
+        if len(waiting_clients) >= 2:
+            p1 = waiting_clients.pop(0)
+            p2 = waiting_clients.pop(0)
+            game = Game(p1,p2)
+            #game
+            p1_sock = game.p1
+            p2_sock = game.p2 
+
+            try:
+                req_p1 = readexactly(p1_sock,2)
+                req_p2 = readexactly(p2_sock,2)
+                #if neither want game, end game
+                if req_p1[0] != Command.WANTGAME.value or req_p2[0] != Command.WANTGAME.value:
+                    kill_game(game)
+                    return
+                cards_p1, cards_p2 = deal_cards()
+                p1_sock.sendall(bytes([Command.GAMESTART.value]) + bytes(cards_p1))
+                p2_sock.sendall(bytes([Command.GAMESTART.value]) + bytes(cards_p2))
+                score_p1 = 0
+                score_p2 = 0
+                used_p1 = set()
+                used_p2 = set()
+
+                for _ in range(26):
+                    recv_p1 = readexactly(p1_sock, 2)
+                    recv_p2 = readexactly(p2_sock,2)
+                    if recv_p1[0] != Command.PLAYCARD.value or recv_p2[0] != Command.PLAYCARD.value :
+                        kill_game(game)
+                        return
+                    if recv_p1[1] in used_p1 or recv_p1[1] not in cards_p1 or recv_p2[1] in used_p2 or recv_p2[1] not in cards_p2:
+                        kill_game(game) #make sure the req sent is a valid card 
+                        return
+                    
+                    used_p1.add(recv_p1[1])
+                    used_p2.add(recv_p2[1])
+
+                    compare = compare_cards(recv_p1[1], recv_p2[1])
+                    if compare == 1:
+                        score_p1 += 1
+                        result_p1 = Result.WIN.value
+                        result_p2 = Result.LOSE.value
+                    elif compare == 0: #tie
+                        result_p1 = Result.DRAW.value
+                        result_p2 = Result.DRAW.value
+                    elif compare == -1:
+                        score_p2 += 1
+                        result_p2 = Result.WIN.value
+                        result_p1 = Result.LOSE.value
+                    p1_sock.sendall(bytes([Command.PLAYRESULT.value, result_p1]))
+                    p2_sock.sendall(bytes([Command.PLAYRESULT.value, result_p2]))
+            except Exception as e:
+                logging.error(f"Error:{e}")
+                kill_game(game)
+            try:
+                p1_sock.close()
+                p2_sock.close()
+            except:
+                logging.error(f"Error could not close sockets:{e}")
+
     
 
 async def limit_client(host, port, loop, sem):
